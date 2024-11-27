@@ -41,9 +41,19 @@ cd rs-polar-mqtt
 cargo build
 ```
 
+## Running the examples
+
+There are currently 3 [examples](examples) which you should be able to run with crgo as usual:
+
+```bash
+cargo run --example mosquito_org
+
+```
+Note that `mosquito_org` will only work if `test.mosquitto.org` listen to port `1883` (it's sometime down).
+
 ## Testing
 
-no test so far ... 😈
+nope ... 😈
 
 
 
@@ -53,6 +63,6 @@ no test so far ... 😈
 |----------|--------|
 | macOS    | ✅     |
 | Linux    | ✅     |
-| Windows  | ❓ Untested |
+
 
 
