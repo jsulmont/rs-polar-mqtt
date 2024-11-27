@@ -60,6 +60,7 @@ namespace
         {
             if (cb_)
             {
+                // Message data is owned by mqtt::Message and guaranteed to exist during callback
                 mqtt_message_data_t msg_data = {
                     .topic = message.getTopic(),
                     .payload = message.getPayload(),
@@ -67,6 +68,7 @@ namespace
                     .qos = static_cast<int>(message.getQoS()),
                     .retained = message.isRetained(),
                     .message_id = message.getMessageId()};
+
                 cb_(&msg_data, context_);
             }
         }
