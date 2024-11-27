@@ -2,34 +2,47 @@ use std::env;
 use std::path::PathBuf;
 
 fn main() {
-    // Configure CMake build (we use shared libraries).
+    println!("cargo:rerun-if-changed=cpp/impl");
+    println!("cargo:rerun-if-changed=cpp/bridge");
+    println!("cargo:rerun-if-changed=cpp/api");
+    println!("cargo:rerun-if-changed=cpp/CMakeLists.txt");
+
+    // Configure CMake build
     let dst = cmake::Config::new("cpp")
         .generator("Unix Makefiles")
         .build_target("all")
         .define("CMAKE_BUILD_TYPE", "Release")
         .define("BUILD_SHARED_LIBS", "ON")
+        .define("CMAKE_POSITION_INDEPENDENT_CODE", "ON")
+        .define("CMAKE_INSTALL_RPATH_USE_LINK_PATH", "ON")
+        .define("CMAKE_MACOSX_RPATH", "ON")
         .very_verbose(true)
         .build();
 
-    println!(
-        "cargo:rustc-link-search=native={}",
-        dst.join("lib").display()
-    );
-    println!(
-        "cargo:rustc-link-search=native={}",
-        dst.join("lib64").display()
-    );
+    // The built libraries are in the build directory
+    let lib_path = dst.join("build");
+    println!("cargo:rustc-link-search=native={}", lib_path.display());
 
+    // Link against our libraries
     println!("cargo:rustc-link-lib=dylib=polar_mqtt_impl");
     println!("cargo:rustc-link-lib=dylib=polar_mqtt_bridge");
 
-    // Link C++ standard library
-    if cfg!(target_os = "linux") {
-        println!("cargo:rustc-link-lib=dylib=stdc++");
-    } else if cfg!(target_os = "macos") {
+    // MacOS specific handling
+    if cfg!(target_os = "macos") {
         println!("cargo:rustc-link-lib=dylib=c++");
-    } else if cfg!(target_os = "windows") {
+
+        // Add the build directory to rpath
+        println!("cargo:rustc-link-arg=-Wl,-rpath,{}", lib_path.display());
+
+        // Add relative paths for when the binary is distributed
+        println!("cargo:rustc-link-arg=-Wl,-rpath,@executable_path/../lib");
+        println!("cargo:rustc-link-arg=-Wl,-rpath,@executable_path/../build");
+        println!("cargo:rustc-link-arg=-Wl,-rpath,@loader_path/../lib");
+        println!("cargo:rustc-link-arg=-Wl,-rpath,@loader_path/../build");
+    } else if cfg!(target_os = "linux") {
         println!("cargo:rustc-link-lib=dylib=stdc++");
+        println!("cargo:rustc-link-arg=-Wl,-rpath,$ORIGIN/../lib");
+        println!("cargo:rustc-link-arg=-Wl,-rpath,$ORIGIN/../build");
     }
 
     // Generate bindings
@@ -47,10 +60,4 @@ fn main() {
     bindings
         .write_to_file(out_path.join("bindings.rs"))
         .expect("Couldn't write bindings!");
-
-    // Rebuild triggers
-    println!("cargo:rerun-if-changed=cpp/impl");
-    println!("cargo:rerun-if-changed=cpp/bridge");
-    println!("cargo:rerun-if-changed=cpp/api");
-    println!("cargo:rerun-if-changed=cpp/CMakeLists.txt");
 }

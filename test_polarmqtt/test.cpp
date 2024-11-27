@@ -78,7 +78,7 @@ int main()
 
         std::cout << "Configuring connection..." << std::endl;
         session.getConfig()
-            .setBroker("test.mosquitto.org", 1883)
+            .setBroker("broker.emqx.io", 1883)
             .set(mqtt::ConnectionConfig::Parameter::KEEP_ALIVE_INTERVAL, 60)
             .set(mqtt::ConnectionConfig::Parameter::CLEAN_SESSION, true);
 
@@ -91,7 +91,7 @@ int main()
 
         // Subscribe to all topics
         std::cout << "Subscribing to PSENSE topics..." << std::endl;
-        int64_t subHandle = session.subscribe("#", mqtt::Message::QoS::AT_LEAST_ONCE);
+        int64_t subHandle = session.subscribe("test/topic", mqtt::Message::QoS::AT_LEAST_ONCE);
         if (subHandle < 0)
         {
             std::cerr << "Failed to subscribe, handle: " << subHandle << std::endl;

@@ -96,6 +96,10 @@
         "format": "cpp",
         "text_encoding": "cpp",
         "thread": "cpp",
-        "cinttypes": "cpp"
+        "cinttypes": "cpp",
+        "__tree": "cpp",
+        "forward_list": "cpp",
+        "iomanip": "cpp",
+        "map": "cpp"
     }
 }

@@ -1,5 +1,5 @@
-#ifndef MQTT_C_HPP
-#define MQTT_C_HPP
+#ifndef MQTT_C_BINDINGS_H
+#define MQTT_C_BINDINGS_H
 
 #include <stdint.h>
 #include <stddef.h>
@@ -9,12 +9,20 @@ extern "C"
 {
 #endif
 
-    // Opaque types
-    typedef struct mqtt_session_t mqtt_session_t;
-    typedef struct mqtt_message_t mqtt_message_t;
-    typedef struct mqtt_factory_t mqtt_factory_t;
+    // Opaque handle types - only for sessions which we do own
+    typedef struct mqtt_session_t *mqtt_session_handle_t;
 
-    // Enums
+    // Message data struct - used to pass message data during callbacks
+    typedef struct mqtt_message_data_t
+    {
+        const char *topic;
+        const uint8_t *payload;
+        size_t payload_length;
+        int qos;
+        int retained;
+        int64_t message_id;
+    } mqtt_message_data_t;
+
     typedef enum
     {
         MQTT_QOS_AT_MOST_ONCE = 0,
@@ -28,61 +36,59 @@ extern "C"
         MQTT_STATE_CONNECTING = 1,
         MQTT_STATE_CONNECTED = 2,
         MQTT_STATE_RECONNECTING = 3
-    } mqtt_state_t;
+    } mqtt_session_state_t;
 
-    // Callbacks
-    typedef void (*mqtt_message_callback_t)(const mqtt_message_t *message, void *context);
-    typedef void (*mqtt_state_callback_t)(mqtt_state_t state, void *context);
+    typedef enum
+    {
+        MQTT_PARAM_KEEP_ALIVE_INTERVAL = 0,
+        MQTT_PARAM_CLEAN_SESSION = 1,
+        MQTT_PARAM_CONNECTION_TIMEOUT = 2,
+        MQTT_PARAM_MAX_INFLIGHT = 3,
+        MQTT_PARAM_MAX_QUEUED_MESSAGES = 4,
+        MQTT_PARAM_RECONNECT_DELAY = 5,
+        MQTT_PARAM_TLS_ENABLED = 6
+    } mqtt_parameter_t;
 
-    // Factory functions
-    mqtt_factory_t *mqtt_factory_get_instance(void);
-    void mqtt_factory_destroy(mqtt_factory_t *factory);
-    int mqtt_factory_initialize(const char *app_name, const char *app_version, int debug);
+    // Callback function types
+    // Note: Message data is only valid during callback execution
+    typedef void (*mqtt_message_callback_t)(const mqtt_message_data_t *message, void *user_context);
+    typedef void (*mqtt_state_callback_t)(mqtt_session_state_t new_state, void *user_context);
+    typedef void (*mqtt_error_callback_t)(int error_code, const char *message, void *user_context);
 
-    // Session management
-    mqtt_session_t *mqtt_session_create(mqtt_factory_t *factory,
-                                        const char *client_id,
-                                        mqtt_state_callback_t state_cb,
-                                        void *state_context);
-    void mqtt_session_destroy(mqtt_session_t *session);
-    int mqtt_session_start(mqtt_session_t *session);
-    int mqtt_session_stop(mqtt_session_t *session);
-    mqtt_state_t mqtt_session_get_state(const mqtt_session_t *session);
+    // Session configuration functions
+    int mqtt_set_int_parameter(mqtt_session_handle_t session, mqtt_parameter_t param, int32_t value);
+    int mqtt_set_bool_parameter(mqtt_session_handle_t session, mqtt_parameter_t param, int value);
+    int mqtt_set_broker(mqtt_session_handle_t session, const char *url, uint16_t port);
+    int mqtt_set_credentials(mqtt_session_handle_t session, const char *username, const char *password);
+    int mqtt_set_tls_certificates(mqtt_session_handle_t session, const char *ca_file,
+                                  const char *cert_file, const char *key_file);
 
-    // Session operations
-    int64_t mqtt_session_subscribe(mqtt_session_t *session,
-                                   const char *topic,
-                                   mqtt_qos_t qos,
-                                   mqtt_message_callback_t msg_cb,
-                                   void *msg_context);
+    // Session lifecycle functions
+    int mqtt_initialize(const char *app_name, const char *app_version, int debug, const char *log_file);
+    int mqtt_uninitialize(void);
+    mqtt_session_handle_t mqtt_create_session(const char *client_id,
+                                              mqtt_message_callback_t message_cb,
+                                              mqtt_state_callback_t state_cb,
+                                              mqtt_error_callback_t error_cb,
+                                              void *user_context);
+    void mqtt_destroy_session(mqtt_session_handle_t session);
 
-    int mqtt_session_unsubscribe(mqtt_session_t *session, int64_t handle);
+    // Session control functions
+    mqtt_session_state_t mqtt_session_get_state(mqtt_session_handle_t session);
+    int mqtt_session_start(mqtt_session_handle_t session);
+    int mqtt_session_stop(mqtt_session_handle_t session);
 
-    int64_t mqtt_session_publish(mqtt_session_t *session,
-                                 const char *topic,
-                                 const uint8_t *payload,
-                                 size_t length,
-                                 mqtt_qos_t qos,
-                                 int retain);
+    // Subscription functions
+    int64_t mqtt_subscribe(mqtt_session_handle_t session, const char *topic, mqtt_qos_t qos);
+    int mqtt_unsubscribe(mqtt_session_handle_t session, int64_t handle);
 
-    // Message accessors
-    const char *mqtt_message_get_topic(const mqtt_message_t *message);
-    const uint8_t *mqtt_message_get_payload(const mqtt_message_t *message);
-    size_t mqtt_message_get_payload_len(const mqtt_message_t *message);
-    mqtt_qos_t mqtt_message_get_qos(const mqtt_message_t *message);
-    int mqtt_message_is_retained(const mqtt_message_t *message);
-
-    // Configuration
-    int mqtt_session_set_broker(mqtt_session_t *session,
-                                const char *url,
-                                uint16_t port);
-
-    int mqtt_session_set_credentials(mqtt_session_t *session,
-                                     const char *username,
-                                     const char *password);
+    // Publishing functions
+    int64_t mqtt_publish(mqtt_session_handle_t session, const char *topic,
+                         const uint8_t *payload, size_t length,
+                         mqtt_qos_t qos, int retain);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // MQTT_C_HPP
+#endif // MQTT_C_BINDINGS_H

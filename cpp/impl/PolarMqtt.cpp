@@ -3,6 +3,7 @@
 #include <map>
 #include <mutex>
 #include <vector>
+#include <iostream>
 
 namespace mqtt
 {
@@ -171,6 +172,7 @@ namespace mqtt
     {
         impl_->clientId = clientId;
         impl_->sessionHandler = &handler;
+        impl_->currentState = SessionState::DISCONNECTED;
     }
 
     Session::~Session()
@@ -192,8 +194,20 @@ namespace mqtt
 
     bool Session::start()
     {
+        if (!impl_ || !impl_->config.impl_)
+        {
+            std::cerr << "Invalid implementation pointers" << std::endl;
+            return false;
+        }
+
         MQTTClient_connectOptions conn_opts = MQTTClient_connectOptions_initializer;
         auto &cfg = impl_->config.impl_;
+
+        if (cfg->broker.empty())
+        {
+            std::cerr << "Broker URL not set" << std::endl;
+            return false;
+        }
 
         std::string serverURI = (cfg->tlsEnabled ? "ssl://" : "tcp://") +
                                 cfg->broker + ":" + std::to_string(cfg->port);
