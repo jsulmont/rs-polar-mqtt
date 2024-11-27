@@ -23,7 +23,7 @@ When dealing with a legacy C++ API like **PolarMqtt**—which includes complex f
  ```c
    typedef struct mqtt_session_t* mqtt_session_handle_t;
    int mqtt_session_start(mqtt_session_handle_t session);
-int mqtt_publish(mqtt_session_handle_t session, const char* topic, const uint8_t* payload, size_t length, mqtt_qos_t qos, int retain);
+   int mqtt_publish(mqtt_session_handle_t session, const char* topic, const uint8_t* payload, size_t length, mqtt_qos_t qos, int retain);
 ```
 
 2. 	**Expose C Functions**: Provide C functions that wrap the C++ methods, using the opaque handles.
