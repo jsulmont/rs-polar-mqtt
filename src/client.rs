@@ -135,30 +135,49 @@ impl Client {
             return;
         }
 
+        // First validate all the data before locking the mutex
+        let payload = if (*message).payload.is_null() || (*message).payload_length == 0 {
+            Vec::new()
+        } else if (*message).payload_length > isize::MAX as usize {
+            eprintln!("Payload too large");
+            return;
+        } else {
+            std::slice::from_raw_parts((*message).payload, (*message).payload_length).to_vec()
+        };
+
+        let topic = CStr::from_ptr((*message).topic)
+            .to_string_lossy()
+            .into_owned();
+
+        let qos = match (*message).qos {
+            0 => QoS::AtMostOnce,
+            1 => QoS::AtLeastOnce,
+            2 => QoS::ExactlyOnce,
+            _ => return,
+        };
+
+        let retained = (*message).retained != 0;
+
+        // Create message before locking
+        let msg = Message {
+            topic,
+            payload,
+            qos,
+            retained,
+        };
+
+        // Now handle the context and callback
         let context = Arc::from_raw(context as *const Mutex<CallbackContext>);
 
-        if let Ok(guard) = context.lock() {
-            let msg = Message {
-                topic: CStr::from_ptr((*message).topic)
-                    .to_string_lossy()
-                    .into_owned(),
-                payload: std::slice::from_raw_parts((*message).payload, (*message).payload_length)
-                    .to_vec(),
-                qos: match (*message).qos {
-                    0 => QoS::AtMostOnce,
-                    1 => QoS::AtLeastOnce,
-                    2 => QoS::ExactlyOnce,
-                    _ => return,
-                },
-                retained: (*message).retained != 0,
-            };
+        // Clone the Arc to avoid the forget/drop issue
+        let context_to_forget = context.clone();
 
+        if let Ok(guard) = context.lock() {
             (guard.message_callback)(&msg);
         }
 
-        std::mem::forget(context);
+        std::mem::forget(context_to_forget);
     }
-
     unsafe extern "C" fn state_callback(
         state: bindings::mqtt_session_state_t,
         context: *mut std::ffi::c_void,
