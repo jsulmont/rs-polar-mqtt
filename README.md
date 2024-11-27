@@ -1,6 +1,7 @@
 # rs-polar-mqtt
 
-Code to support this blog post.
+Code to support this blog post (see [here](intro.md) for a quick introduction).
+
 
 ## Prerequisites
 
@@ -42,9 +43,7 @@ cargo build
 
 ## Testing
 
-```bash
-cargo test
-```
+no test so far ... 😈
 
 
 
