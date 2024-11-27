@@ -7,7 +7,6 @@ fn main() {
     println!("cargo:rerun-if-changed=cpp/api");
     println!("cargo:rerun-if-changed=cpp/CMakeLists.txt");
 
-    // Configure CMake build
     let dst = cmake::Config::new("cpp")
         .generator("Unix Makefiles")
         .build_target("all")
@@ -19,22 +18,14 @@ fn main() {
         .very_verbose(true)
         .build();
 
-    // The built libraries are in the build directory
     let lib_path = dst.join("build");
     println!("cargo:rustc-link-search=native={}", lib_path.display());
-
-    // Link against our libraries
     println!("cargo:rustc-link-lib=dylib=polar_mqtt_impl");
     println!("cargo:rustc-link-lib=dylib=polar_mqtt_bridge");
 
-    // MacOS specific handling
     if cfg!(target_os = "macos") {
         println!("cargo:rustc-link-lib=dylib=c++");
-
-        // Add the build directory to rpath
         println!("cargo:rustc-link-arg=-Wl,-rpath,{}", lib_path.display());
-
-        // Add relative paths for when the binary is distributed
         println!("cargo:rustc-link-arg=-Wl,-rpath,@executable_path/../lib");
         println!("cargo:rustc-link-arg=-Wl,-rpath,@executable_path/../build");
         println!("cargo:rustc-link-arg=-Wl,-rpath,@loader_path/../lib");
@@ -43,9 +34,10 @@ fn main() {
         println!("cargo:rustc-link-lib=dylib=stdc++");
         println!("cargo:rustc-link-arg=-Wl,-rpath,$ORIGIN/../lib");
         println!("cargo:rustc-link-arg=-Wl,-rpath,$ORIGIN/../build");
+    } else {
+        panic!("Unsupported OS");
     }
 
-    // Generate bindings
     let bindings = bindgen::Builder::default()
         .header("cpp/bridge/include/mqtt_c.hpp")
         .clang_arg("-x")
